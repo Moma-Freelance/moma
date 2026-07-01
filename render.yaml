@@ -1,0 +1,65 @@
+databases:
+  - name: moma-db
+    databaseName: moma
+    user: moma
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: moma-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      npm install 
+      npm run build --workspace=backend
+    startCommand: npm run start:prod --workspace=backend
+    buildFilter:
+      paths:
+        - apps/backend/**
+        - packages/**
+      ignoredPaths:
+        - apps/frontend/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromDatabase:
+          name: moma-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: moma-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: moma-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: moma-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: moma-db
+          property: database
+      - key: JWT_SECRET
+        generateValue: true
+
+  - type: web
+    name: moma
+    runtime: static
+    buildCommand: npm install && npx turbo build --filter=frontend
+    staticPublishPath: apps/frontend/dist
+    buildFilter:
+      paths:
+        - apps/frontend/**
+        - packages/**
+      ignoredPaths:
+        - apps/backend/**
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
