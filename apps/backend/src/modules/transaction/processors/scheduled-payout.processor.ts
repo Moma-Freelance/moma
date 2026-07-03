@@ -118,7 +118,7 @@ export class ScheduledPayoutProcessor extends WorkerHost {
           balanceBefore: freelancer.reservedBalance,
           balanceAfter: freelancer.reservedBalance, // unchanged
           isScheduled: true,
-          scheduledFor: freelancer.nextPayoutDate,
+          scheduledFor: freelancer.nextPayoutDate ?? null,
           status: PayoutStatus.FAILED,
           failureReason: error?.message ?? 'Nomba transfer error',
           processedAt: new Date(),
