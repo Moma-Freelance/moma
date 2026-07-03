@@ -40,13 +40,16 @@ export class Payout {
   @Column({ default: true })
   isScheduled: boolean;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
   scheduledFor: Date | null;
 
   @Column({ nullable: true, unique: true })
   nombaTransferRef: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   processedAt: Date;
 
   @Column({ nullable: true })

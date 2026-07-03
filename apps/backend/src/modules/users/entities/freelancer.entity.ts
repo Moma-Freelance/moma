@@ -9,9 +9,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
 import { Contract } from 'src/modules/contracts/entities/contract.entity';
 import { Payout } from 'src/modules/transaction/entities/payout.entity';
+import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
 
 export enum PayoutSchedule {
   INSTANT = 'instant',
@@ -71,7 +71,10 @@ export class Freelancer {
   @Column({ nullable: true })
   payoutAmount: number;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
   nextPayoutDate: Date | null;
 
   @Column({
