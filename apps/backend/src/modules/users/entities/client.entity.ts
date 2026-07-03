@@ -10,7 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Contract } from 'src/contracts/entities/contract.entity';
+import { Contract } from 'src/modules/contracts/entities/contract.entity';
 
 @Entity()
 export class Client {

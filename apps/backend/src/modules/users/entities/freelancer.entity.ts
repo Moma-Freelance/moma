@@ -1,4 +1,3 @@
-// freelancer.entity.ts
 import {
   Column,
   CreateDateColumn,
@@ -10,15 +9,21 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Transaction } from 'src/transaction/entities/transaction.entity';
-import { Contract } from 'src/contracts/entities/contract.entity';
-import { Payout } from 'src/transaction/entities/payout.entity';
+import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
+import { Contract } from 'src/modules/contracts/entities/contract.entity';
+import { Payout } from 'src/modules/transaction/entities/payout.entity';
 
 export enum PayoutSchedule {
   INSTANT = 'instant',
   WEEKLY = 'weekly',
   BIWEEKLY = 'biweekly',
   MONTHLY = 'monthly',
+}
+
+export enum Professions {
+  DEVELOPER = 'developer',
+  UI_DESIGNER = 'uiDesigner',
+  OTHER = 'other',
 }
 
 @Entity()
@@ -35,6 +40,9 @@ export class Freelancer {
 
   @Column({ nullable: true })
   nombaBankName: string;
+
+  @Column({ nullable: true })
+  accountHolderId: string;
 
   @Column({ nullable: true })
   bankCode: string;
@@ -64,7 +72,14 @@ export class Freelancer {
   payoutAmount: number;
 
   @Column({ nullable: true })
-  nextPayoutDate: Date;
+  nextPayoutDate: Date | null;
+
+  @Column({
+    type: 'enum',
+    enum: Professions,
+    default: Professions.OTHER,
+  })
+  profession: Professions;
 
   @CreateDateColumn()
   createdAt: Date;

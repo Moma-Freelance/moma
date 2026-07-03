@@ -1,5 +1,5 @@
 // payout.entity.ts
-import { Freelancer } from 'src/users/entities/freelancer.entity';
+import { Freelancer } from 'src/modules/users/entities/freelancer.entity';
 import {
   Column,
   CreateDateColumn,
@@ -41,7 +41,7 @@ export class Payout {
   isScheduled: boolean;
 
   @Column({ nullable: true })
-  scheduledFor: Date;
+  scheduledFor: Date | null;
 
   @Column({ nullable: true, unique: true })
   nombaTransferRef: string;

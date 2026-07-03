@@ -7,13 +7,15 @@ import { User, UserRole } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { Freelancer } from './entities/freelancer.entity';
 import { Client } from './entities/client.entity';
-import { NombaHttpService } from 'src/nomba/nomba-http.service';
+import { NombaHttpService } from 'src/modules/nomba/nomba-http.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { EmailService } from '../email/email.service';
 
 interface NombaVirtualAccountResponse {
   code: string;
   description: string;
   data: {
+    accountHolderId: string;
     accountRef: string;
     accountName: string;
     bankName: string;
@@ -33,6 +35,7 @@ export class UsersService {
     private readonly clientRepo: Repository<Client>,
     private dataSource: DataSource,
     private readonly nombaHttp: NombaHttpService,
+    private readonly mailService: EmailService,
   ) {}
   //create
   //verify email
@@ -73,6 +76,10 @@ export class UsersService {
       }
 
       // I need to send the otp email;
+      const subject = 'Welcome to Moma';
+      await this.mailService.sendEmail(createUserDto.email, subject, 'login', {
+        otp: otpCode,
+      });
       return { message: 'Account created. Check your email for the OTP.' };
     });
   }
@@ -150,8 +157,10 @@ export class UsersService {
           }
 
           await manager.update(Freelancer, freelancer.id, {
+            accountHolderId: va.data.accountHolderId,
             nombaVirtualAcctNo: va.data.bankAccountNumber,
             nombaBankName: va.data.bankName,
+            profession: updateProfileDto.profession,
           });
         }
 
@@ -169,7 +178,10 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User | null> {
-    const user = await this.userRepo.findOne({ where: { id } });
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: { freelancer: true },
+    });
     return user;
   }
   async findByEmail(email: string): Promise<User | null> {
