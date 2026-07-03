@@ -20,7 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { VerifyEmailDto } from './dto/verify-otp.dto';
-import { Public } from 'src/auth/decorators/public.decorator';
+import { Public } from 'src/modules/auth/decorators/public.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')

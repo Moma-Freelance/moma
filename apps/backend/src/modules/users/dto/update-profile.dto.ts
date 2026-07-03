@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { Professions } from '../entities/freelancer.entity';
 
 export class UpdateProfileDto {
   @ApiProperty({ example: 'Michael' })
@@ -16,4 +17,8 @@ export class UpdateProfileDto {
   @IsString()
   @IsNotEmpty()
   phoneNumber!: string;
+
+  @ApiProperty({ enum: Professions, example: Professions.DEVELOPER })
+  @IsEnum(Professions)
+  profession!: Professions;
 }

@@ -1,12 +1,12 @@
 import { DataSource } from 'typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User } from 'src/users/entities/user.entity';
-import { Freelancer } from 'src/users/entities/freelancer.entity';
-import { Client } from 'src/users/entities/client.entity';
-import { Contract } from 'src/contracts/entities/contract.entity';
-import { Transaction } from 'src/transaction/entities/transaction.entity';
-import { Payout } from 'src/transaction/entities/payout.entity';
-import { WebhookEvent } from 'src/transaction/entities/webhook-event.entity';
+import { User } from 'src/modules/users/entities/user.entity';
+import { Freelancer } from 'src/modules/users/entities/freelancer.entity';
+import { Client } from 'src/modules/users/entities/client.entity';
+import { Contract } from 'src/modules/contracts/entities/contract.entity';
+import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
+import { Payout } from 'src/modules/transaction/entities/payout.entity';
+import { WebhookEvent } from 'src/modules/nomba/entities/webhook-event.entity';
 
 export const databaseConfig = {
   imports: [ConfigModule],

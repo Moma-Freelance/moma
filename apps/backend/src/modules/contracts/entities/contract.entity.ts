@@ -1,7 +1,7 @@
 // contract.entity.ts
-import { Transaction } from 'src/transaction/entities/transaction.entity';
-import { Client } from 'src/users/entities/client.entity';
-import { Freelancer } from 'src/users/entities/freelancer.entity';
+import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
+import { Client } from 'src/modules/users/entities/client.entity';
+import { Freelancer } from 'src/modules/users/entities/freelancer.entity';
 import {
   Column,
   CreateDateColumn,
