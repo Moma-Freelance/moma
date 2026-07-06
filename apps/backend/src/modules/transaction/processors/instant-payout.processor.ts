@@ -11,6 +11,7 @@ import {
 } from '../entities/transaction.entity';
 import { Freelancer } from 'src/modules/users/entities/freelancer.entity';
 import { NombaHttpService } from 'src/modules/nomba/nomba-http.service';
+import { ConfigService } from '@nestjs/config';
 
 export interface InstantPayoutJobData {
   freelancerId: string;
@@ -32,7 +33,7 @@ interface NombaWalletTransferResponse {
 @Processor('payout-instant')
 export class InstantPayoutProcessor extends WorkerHost {
   private readonly logger = new Logger(InstantPayoutProcessor.name);
-
+  private readonly subAccountId: string;
   constructor(
     @InjectRepository(Payout)
     private readonly payoutRepo: Repository<Payout>,
@@ -42,8 +43,10 @@ export class InstantPayoutProcessor extends WorkerHost {
     private readonly freelancerRepo: Repository<Freelancer>,
     private readonly dataSource: DataSource,
     private readonly nombaHttp: NombaHttpService,
+    private readonly configService: ConfigService,
   ) {
     super();
+    this.subAccountId = this.configService.get<string>('NOMBA_SUB_ACCOUNT_ID')!;
   }
 
   async process(job: Job<InstantPayoutJobData>): Promise<void> {
@@ -78,17 +81,15 @@ export class InstantPayoutProcessor extends WorkerHost {
         return;
       }
 
-      // call Nomba wallet transfer
-      // amount is stored in kobo, Nomba expects naira
       const merchantTxRef = `INSTANT-${freelancerId}-${Date.now()}`;
       let transferResponse: NombaWalletTransferResponse;
 
       try {
         transferResponse =
           await this.nombaHttp.post<NombaWalletTransferResponse>(
-            '/transfers/wallet',
+            `/transfers/wallet/${this.subAccountId}`,
             {
-              amount: amount / 100, // kobo to naira
+              amount: amount / 100,
               receiverAccountId: freelancer.accountHolderId,
               merchantTxRef,
               narration: 'Moma instant payout',
@@ -104,7 +105,7 @@ export class InstantPayoutProcessor extends WorkerHost {
           freelancer: { id: freelancerId },
           amount,
           balanceBefore: freelancer.reservedBalance,
-          balanceAfter: freelancer.reservedBalance, // unchanged
+          balanceAfter: freelancer.reservedBalance,
           isScheduled: false,
           status: PayoutStatus.FAILED,
           failureReason: error?.message ?? 'Nomba transfer error',
@@ -122,7 +123,7 @@ export class InstantPayoutProcessor extends WorkerHost {
           freelancer: { id: freelancerId },
           amount,
           balanceBefore: freelancer.reservedBalance,
-          balanceAfter: freelancer.reservedBalance, // unchanged
+          balanceAfter: freelancer.reservedBalance,
           isScheduled: false,
           status: PayoutStatus.FAILED,
           failureReason: transferResponse.description,
@@ -131,7 +132,6 @@ export class InstantPayoutProcessor extends WorkerHost {
         return;
       }
 
-      // transfer successful — update balance
       const balanceBefore = freelancer.reservedBalance;
       const balanceAfter = balanceBefore - amount;
 
@@ -139,7 +139,6 @@ export class InstantPayoutProcessor extends WorkerHost {
         reservedBalance: balanceAfter,
       });
 
-      // create payout record
       await manager.save(Payout, {
         freelancer: { id: freelancerId },
         amount,
@@ -151,7 +150,6 @@ export class InstantPayoutProcessor extends WorkerHost {
         processedAt: new Date(),
       });
 
-      // create transaction ledger entry
       await manager.save(Transaction, {
         freelancer: { id: freelancerId },
         contract: { id: contractId },
@@ -170,8 +168,6 @@ export class InstantPayoutProcessor extends WorkerHost {
         `Instant payout successful for freelancer ${freelancerId}. ` +
           `Balance: ${balanceBefore} → ${balanceAfter}`,
       );
-
-      // TODO: send notification to freelancer
     });
   }
 }

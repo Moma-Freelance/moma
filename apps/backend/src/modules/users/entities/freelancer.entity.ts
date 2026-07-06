@@ -53,7 +53,6 @@ export class Freelancer {
   @Column({ nullable: true })
   bankAccountName: string;
 
-  // Cached balances (in kobo)
   @Column({ default: 0 })
   availableBalance: number;
 

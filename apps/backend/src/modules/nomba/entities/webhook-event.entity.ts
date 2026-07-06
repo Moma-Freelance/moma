@@ -1,4 +1,3 @@
-// webhook-event.entity.ts
 import {
   Column,
   CreateDateColumn,
@@ -18,10 +17,10 @@ export class WebhookEvent {
   id: string;
 
   @Column({ unique: true })
-  nombaRef: string; // idempotency key
+  nombaRef: string;
 
   @Column()
-  eventType: string; // e.g. "payment.completed"
+  eventType: string;
 
   @Column({ type: 'jsonb' })
   payload: Record<string, any>;

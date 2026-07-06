@@ -1,4 +1,3 @@
-// client.entity.ts
 import {
   Column,
   CreateDateColumn,
@@ -12,6 +11,12 @@ import {
 import { User } from './user.entity';
 import { Contract } from 'src/modules/contracts/entities/contract.entity';
 
+export enum Industry {
+  FINANCE = 'finance',
+  IT = 'it',
+  OTHER = 'other',
+}
+
 @Entity()
 export class Client {
   @PrimaryGeneratedColumn('uuid')
@@ -23,8 +28,12 @@ export class Client {
   @Column({ nullable: true })
   companyName: string;
 
-  @Column({ nullable: true })
-  industry: string;
+  @Column({
+    type: 'enum',
+    enum: Industry,
+    default: Industry.OTHER,
+  })
+  industry: Industry;
 
   @CreateDateColumn()
   createdAt: Date;

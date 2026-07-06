@@ -14,6 +14,8 @@ import {
   PayoutSchedule,
 } from 'src/modules/users/entities/freelancer.entity';
 import { InstantPayoutJobData } from './processors/instant-payout.processor';
+import { calculateNextPayoutDate } from 'src/core/utils/payout.utils';
+import { TransactionQueryDto } from './dto/transaction-query.dto';
 
 @Injectable()
 export class TransactionService {
@@ -39,7 +41,7 @@ export class TransactionService {
       {},
       {
         repeat: {
-          pattern: '0 0 * * *', // every day at midnight
+          pattern: '0 0 * * *',
         },
         removeOnComplete: true,
         removeOnFail: false,
@@ -51,9 +53,9 @@ export class TransactionService {
 
   async handleIncomingPayment(
     freelancerId: string,
-    amount: number, // in kobo
+    amount: number,
     contractId: string,
-    nombaRef: string, // from webhook
+    nombaRef: string,
   ): Promise<void> {
     this.logger.log(
       `Handling incoming payment for freelancer ${freelancerId}, amount: ${amount}`,
@@ -69,7 +71,6 @@ export class TransactionService {
         return;
       }
 
-      // 1. create CLIENT_PAYMENT transaction record
       await manager.save(Transaction, {
         freelancer: { id: freelancerId },
         contract: { id: contractId },
@@ -81,7 +82,6 @@ export class TransactionService {
         metadata: { contractId, nombaRef },
       });
 
-      // 2. add amount to reservedBalance
       const updatedReservedBalance = freelancer.reservedBalance + amount;
       await manager.update(Freelancer, freelancerId, {
         reservedBalance: updatedReservedBalance,
@@ -92,9 +92,7 @@ export class TransactionService {
           `${freelancer.reservedBalance} → ${updatedReservedBalance}`,
       );
 
-      // 3. route based on payout schedule
       if (freelancer.payoutSchedule === PayoutSchedule.INSTANT) {
-        // add to instant payout queue
         await this.instantPayoutQueue.add(
           'instant-payout',
           {
@@ -103,10 +101,10 @@ export class TransactionService {
             contractId,
           } as InstantPayoutJobData,
           {
-            attempts: 3, // retry up to 3 times if it fails
+            attempts: 3,
             backoff: {
               type: 'exponential',
-              delay: 5000, // start with 5s, then 10s, then 20s
+              delay: 5000,
             },
           },
         );
@@ -115,10 +113,8 @@ export class TransactionService {
           `Instant payout job queued for freelancer ${freelancerId}`,
         );
       } else {
-        // scheduled — money stays in reservedBalance
-        // recalculate nextPayoutDate if not set
         if (!freelancer.nextPayoutDate) {
-          const nextPayoutDate = this.calculateNextPayoutDate(
+          const nextPayoutDate = calculateNextPayoutDate(
             freelancer.payoutSchedule,
           );
           await manager.update(Freelancer, freelancerId, { nextPayoutDate });
@@ -130,28 +126,52 @@ export class TransactionService {
       }
     });
   }
+  async getFreelancerTransactions(
+    freelancerId: string,
+    query: TransactionQueryDto,
+  ) {
+    const { type, status, from, to, page = 1, limit = 5 } = query;
 
-  private calculateNextPayoutDate(schedule: PayoutSchedule): Date {
-    const now = new Date();
-    switch (schedule) {
-      case PayoutSchedule.WEEKLY:
-        now.setDate(now.getDate() + 7);
-        break;
-      case PayoutSchedule.BIWEEKLY:
-        now.setDate(now.getDate() + 14);
-        break;
-      case PayoutSchedule.MONTHLY:
-        now.setMonth(now.getMonth() + 1);
-        break;
+    const qb = this.transactionRepo
+      .createQueryBuilder('transaction')
+      .where('transaction.freelancerId = :freelancerId', { freelancerId })
+      .orderBy('transaction.createdAt', 'DESC');
+
+    if (type) {
+      qb.andWhere('transaction.type = :type', { type });
     }
-    return now;
-  }
 
-  findAll() {
-    return this.transactionRepo.find();
-  }
+    if (status) {
+      qb.andWhere('transaction.status = :status', { status });
+    }
 
-  findOne(id: string) {
-    return this.transactionRepo.findOne({ where: { id } });
+    if (from) {
+      qb.andWhere('transaction.createdAt >= :from', {
+        from: new Date(from),
+      });
+    }
+
+    if (to) {
+      qb.andWhere('transaction.createdAt <= :to', {
+        to: new Date(to),
+      });
+    }
+
+    const total = await qb.getCount();
+
+    const transactions = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    return {
+      data: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

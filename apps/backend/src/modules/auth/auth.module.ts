@@ -8,7 +8,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { jwtConfig } from 'src/config/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/modules/users/entities/user.entity';
+// import { User } from 'src/modules/users/entities/user.entity';
+import { Client } from '../users/entities/client.entity';
+import { Freelancer } from '../users/entities/freelancer.entity';
 
 @Module({
   controllers: [AuthController],
@@ -16,7 +18,7 @@ import { User } from 'src/modules/users/entities/user.entity';
     UsersModule,
     PassportModule,
     JwtModule.registerAsync(jwtConfig),
-    //TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([Freelancer, Client]),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
 })

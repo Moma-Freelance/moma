@@ -1,15 +1,24 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
-import { Freelancer } from './entities/freelancer.entity';
+import { Freelancer, PayoutSchedule } from './entities/freelancer.entity';
 import { Client } from './entities/client.entity';
 import { NombaHttpService } from 'src/modules/nomba/nomba-http.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { EmailService } from '../email/email.service';
+import { ConfigService } from '@nestjs/config';
+import { UpdatePayoutScheduleDto } from './dto/update-payout-schedule.dto';
+import { calculateNextPayoutDate } from 'src/core/utils/payout.utils';
+import { Payout } from '../transaction/entities/payout.entity';
+import { Transaction } from '../transaction/entities/transaction.entity';
 
 interface NombaVirtualAccountResponse {
   code: string;
@@ -26,6 +35,7 @@ interface NombaVirtualAccountResponse {
 
 @Injectable()
 export class UsersService {
+  private readonly subAccountId: string;
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -33,10 +43,17 @@ export class UsersService {
     private readonly freelancerRepo: Repository<Freelancer>,
     @InjectRepository(Client)
     private readonly clientRepo: Repository<Client>,
+    @InjectRepository(Payout)
+    private readonly payoutRepo: Repository<Payout>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepo: Repository<Transaction>,
     private dataSource: DataSource,
     private readonly nombaHttp: NombaHttpService,
     private readonly mailService: EmailService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.subAccountId = this.configService.get<string>('NOMBA_SUB_ACCOUNT_ID')!;
+  }
   //create
   //verify email
 
@@ -77,7 +94,7 @@ export class UsersService {
 
       // I need to send the otp email;
       const subject = 'Welcome to Moma';
-      await this.mailService.sendEmail(createUserDto.email, subject, 'login', {
+      await this.mailService.sendEmail(createUserDto.email, subject, 'otp', {
         otp: otpCode,
       });
       return { message: 'Account created. Check your email for the OTP.' };
@@ -142,7 +159,7 @@ export class UsersService {
 
         if (!freelancer.nombaVirtualAcctNo) {
           const va = await this.nombaHttp.post<NombaVirtualAccountResponse>(
-            '/accounts/virtual',
+            `/accounts/virtual/${this.subAccountId}`,
             {
               accountRef: id,
               accountName: `${updateProfileDto.firstName} ${updateProfileDto.lastName}`,
@@ -166,15 +183,17 @@ export class UsersService {
 
         await manager.update(User, id, { onboardingComplete: true });
       } else if (user.role === UserRole.CLIENT) {
+        const client = await this.clientRepo.findOne({ where: { userId: id } });
+        if (!client) throw new BadRequestException('Client profile not found');
+        await manager.update(Client, client.id, {
+          companyName: updateProfileDto.companyName,
+          industry: updateProfileDto.industry,
+        });
         await manager.update(User, id, { onboardingComplete: true });
       }
 
       return this.findOne(id);
     });
-  }
-
-  findAll() {
-    return `This action returns all users`;
   }
 
   async findOne(id: string): Promise<User | null> {
@@ -189,11 +208,72 @@ export class UsersService {
     return user;
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async updatePayoutSchedule(
+    userId: string,
+    dto: UpdatePayoutScheduleDto,
+  ): Promise<Freelancer | null> {
+    const freelancer = await this.freelancerRepo.findOne({ where: { userId } });
+    if (!freelancer)
+      throw new NotFoundException('Freelancer profile not found');
+
+    const updateData: Partial<Freelancer> = {
+      payoutSchedule: dto.payoutSchedule,
+      payoutAmount: dto.payoutAmount ?? freelancer.payoutAmount,
+    };
+
+    if (dto.payoutSchedule === PayoutSchedule.INSTANT) {
+      // clear scheduled fields — not needed for instant
+      updateData.nextPayoutDate = null;
+      updateData.payoutAmount = 0;
+    } else {
+      // recalculate nextPayoutDate from now based on new schedule
+      updateData.nextPayoutDate = calculateNextPayoutDate(dto.payoutSchedule);
+    }
+
+    await this.freelancerRepo.update(freelancer.id, updateData);
+
+    return this.freelancerRepo.findOne({ where: { userId } });
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} user`;
+  async getWalletDashboard(userId: string) {
+    const freelancer = await this.freelancerRepo.findOne({
+      where: { userId },
+      relations: ['payouts', 'transactions'],
+    });
+
+    if (!freelancer)
+      throw new NotFoundException('Freelancer profile not found');
+
+    // calculate runway
+    const runway =
+      freelancer.payoutSchedule !== PayoutSchedule.INSTANT &&
+      freelancer.payoutAmount > 0
+        ? Math.floor(freelancer.reservedBalance / freelancer.payoutAmount)
+        : null;
+
+    // get last 5 payouts
+    const recentPayouts = await this.payoutRepo.find({
+      where: { freelancer: { id: freelancer.id } },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    });
+
+    // get last 5 transactions
+    const recentTransactions = await this.transactionRepo.find({
+      where: { freelancer: { id: freelancer.id } },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    });
+
+    return {
+      availableBalance: freelancer.availableBalance,
+      reservedBalance: freelancer.reservedBalance,
+      payoutSchedule: freelancer.payoutSchedule,
+      payoutAmount: freelancer.payoutAmount,
+      nextPayoutDate: freelancer.nextPayoutDate,
+      runway,
+      recentPayouts,
+      recentTransactions,
+    };
   }
 }

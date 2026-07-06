@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { TransactionController } from './transaction.controller';
 import { Transaction } from './entities/transaction.entity';
@@ -17,7 +17,7 @@ import { ScheduledPayoutProcessor } from './processors/scheduled-payout.processo
       { name: 'payout-instant' },
       { name: 'payout-scheduled' },
     ),
-    NombaModule,
+    forwardRef(() => NombaModule),
   ],
   controllers: [TransactionController],
   providers: [

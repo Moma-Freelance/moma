@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Request,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,6 +22,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { VerifyEmailDto } from './dto/verify-otp.dto';
 import { Public } from 'src/modules/auth/decorators/public.decorator';
+import { UpdatePayoutScheduleDto } from './dto/update-payout-schedule.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -61,6 +63,24 @@ export class UsersController {
     return this.usersService.resendOtp(dto.email);
   }
 
+  @Patch('payout-schedule')
+  @ApiOperation({
+    summary: 'Freelancer updates their payout schedule and amount',
+  })
+  @ApiResponse({ status: 200, description: 'Payout schedule updated.' })
+  @ApiResponse({ status: 404, description: 'Freelancer profile not found.' })
+  updatePayoutSchedule(@Body() dto: UpdatePayoutScheduleDto, @Request() req) {
+    return this.usersService.updatePayoutSchedule(req.user.id, dto);
+  }
+
+  @Get('wallet')
+  @ApiOperation({ summary: 'Freelancer wallet dashboard' })
+  @ApiResponse({ status: 200, description: 'Wallet dashboard data.' })
+  @ApiResponse({ status: 404, description: 'Freelancer profile not found.' })
+  getWalletDashboard(@Request() req) {
+    return this.usersService.getWalletDashboard(req.user.id);
+  }
+
   @Patch(':id/profile')
   @ApiOperation({
     summary:
@@ -82,12 +102,12 @@ export class UsersController {
     return this.usersService.updateProfile(id, updateProfileDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'List of all users.' })
-  findAll() {
-    return this.usersService.findAll();
-  }
+  // @Get()
+  // @ApiOperation({ summary: 'Get all users' })
+  // @ApiResponse({ status: 200, description: 'List of all users.' })
+  // findAll() {
+  //   return this.usersService.findAll();
+  // }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID' })
@@ -98,19 +118,19 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a user' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'User updated.' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
-  }
+  // @Patch(':id')
+  // @ApiOperation({ summary: 'Update a user' })
+  // @ApiParam({ name: 'id', description: 'User ID' })
+  // @ApiResponse({ status: 200, description: 'User updated.' })
+  // update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  //   return this.usersService.update(id, updateUserDto);
+  // }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a user' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'User deleted.' })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
-  }
+  // @Delete(':id')
+  // @ApiOperation({ summary: 'Delete a user' })
+  // @ApiParam({ name: 'id', description: 'User ID' })
+  // @ApiResponse({ status: 200, description: 'User deleted.' })
+  // remove(@Param('id') id: string) {
+  //   return this.usersService.remove(id);
+  // }
 }
