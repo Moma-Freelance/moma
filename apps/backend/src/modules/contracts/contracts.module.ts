@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { ContractsController } from './contracts.controller';
-import { HttpModule } from '@nestjs/axios';
-import { Contract } from './entities/contract.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TransactionModule } from '../transaction/transaction.module';
+import { Contract } from './entities/contract.entity';
+import { NombaModule } from '../nomba/nomba.module';
+import { Client } from '../users/entities/client.entity';
 
 @Module({
-  imports: [
-    HttpModule,
-    TypeOrmModule.forFeature([Contract]),
-    TransactionModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Contract, Client]), NombaModule],
   controllers: [ContractsController],
   providers: [ContractsService],
+  exports: [ContractsService],
 })
 export class ContractsModule {}

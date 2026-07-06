@@ -18,7 +18,7 @@ export const mailConfig = {
       from: configService.get<string>('EMAIL_FROM'),
     },
     template: {
-      dir: __dirname + '/../../templates',
+      dir: __dirname + '/../templates',
       adapter: new PugAdapter(),
       options: {
         strict: true,

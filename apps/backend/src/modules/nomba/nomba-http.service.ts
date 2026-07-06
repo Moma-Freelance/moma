@@ -26,8 +26,7 @@ export class NombaHttpService {
   private readonly httpsAgent = new Agent({ family: 4 });
 
   private accessToken: string | null = null;
-  private tokenExpiresAt: number | null = null; // epoch ms
-
+  private tokenExpiresAt: number | null = null;
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -132,7 +131,7 @@ export class NombaHttpService {
           url,
           method,
           data: body,
-          httpAgent: this.httpsAgent,
+          httpsAgent: this.httpsAgent,
           ...config,
           headers: { ...headers, ...config.headers },
         }),
