@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Professions } from '../entities/freelancer.entity';
+import { Industry } from '../entities/client.entity';
 
 export class UpdateProfileDto {
   @ApiProperty({ example: 'Michael' })
@@ -20,5 +21,16 @@ export class UpdateProfileDto {
 
   @ApiProperty({ enum: Professions, example: Professions.DEVELOPER })
   @IsEnum(Professions)
-  profession!: Professions;
+  @IsOptional()
+  profession?: Professions;
+
+  @ApiProperty({ enum: Industry, example: Industry.IT })
+  @IsEnum(Industry)
+  @IsOptional()
+  industry?: Industry;
+
+  @ApiProperty({ example: 'Moma Ltd' })
+  @IsString()
+  @IsOptional()
+  companyName?: string;
 }

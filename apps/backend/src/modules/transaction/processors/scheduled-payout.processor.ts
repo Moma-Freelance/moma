@@ -1,4 +1,3 @@
-// transaction/processors/scheduled-payout.processor.ts
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +20,8 @@ import {
   PayoutSchedule,
 } from 'src/modules/users/entities/freelancer.entity';
 import { NombaHttpService } from 'src/modules/nomba/nomba-http.service';
+import { calculateNextPayoutDate } from 'src/core/utils/payout.utils';
+import { ConfigService } from '@nestjs/config';
 
 interface NombaWalletTransferResponse {
   code: string;
@@ -36,7 +37,7 @@ interface NombaWalletTransferResponse {
 @Processor('payout-scheduled')
 export class ScheduledPayoutProcessor extends WorkerHost {
   private readonly logger = new Logger(ScheduledPayoutProcessor.name);
-
+  private readonly subAccountId: string;
   constructor(
     @InjectRepository(Payout)
     private readonly payoutRepo: Repository<Payout>,
@@ -46,14 +47,15 @@ export class ScheduledPayoutProcessor extends WorkerHost {
     private readonly freelancerRepo: Repository<Freelancer>,
     private readonly dataSource: DataSource,
     private readonly nombaHttp: NombaHttpService,
+    private readonly configService: ConfigService,
   ) {
     super();
+    this.subAccountId = this.configService.get<string>('NOMBA_SUB_ACCOUNT_ID')!;
   }
 
   async process(job: Job): Promise<void> {
     this.logger.log('Scheduled payout cron fired — checking due freelancers');
 
-    // find all freelancers due for payout
     const dueFrelancers = await this.freelancerRepo.find({
       where: {
         payoutSchedule: Not(PayoutSchedule.INSTANT),
@@ -70,8 +72,6 @@ export class ScheduledPayoutProcessor extends WorkerHost {
   }
 
   private async processFreelancerPayout(freelancer: Freelancer): Promise<void> {
-    // determine actual payout amount
-    // if reserved balance is less than payout amount, pay what's remaining
     const isPartialPayout =
       freelancer.reservedBalance < freelancer.payoutAmount;
     const amountToTransfer = isPartialPayout
@@ -98,9 +98,9 @@ export class ScheduledPayoutProcessor extends WorkerHost {
       try {
         transferResponse =
           await this.nombaHttp.post<NombaWalletTransferResponse>(
-            '/v1/transfers/wallet',
+            `/transfers/wallet/${this.subAccountId}`,
             {
-              amount: amountToTransfer / 100, // kobo to naira
+              amount: amountToTransfer / 100,
               receiverAccountId: freelancer.accountHolderId,
               merchantTxRef,
               narration: `Moma ${freelancer.payoutSchedule} payout`,
@@ -116,7 +116,7 @@ export class ScheduledPayoutProcessor extends WorkerHost {
           freelancer: { id: freelancer.id },
           amount: amountToTransfer,
           balanceBefore: freelancer.reservedBalance,
-          balanceAfter: freelancer.reservedBalance, // unchanged
+          balanceAfter: freelancer.reservedBalance,
           isScheduled: true,
           scheduledFor: freelancer.nextPayoutDate ?? null,
           status: PayoutStatus.FAILED,
@@ -137,7 +137,7 @@ export class ScheduledPayoutProcessor extends WorkerHost {
           freelancer: { id: freelancer.id },
           amount: amountToTransfer,
           balanceBefore: freelancer.reservedBalance,
-          balanceAfter: freelancer.reservedBalance, // unchanged
+          balanceAfter: freelancer.reservedBalance,
           isScheduled: true,
           scheduledFor: freelancer.nextPayoutDate,
           status: PayoutStatus.FAILED,
@@ -149,20 +149,17 @@ export class ScheduledPayoutProcessor extends WorkerHost {
         return;
       }
 
-      // transfer successful
       const balanceBefore = freelancer.reservedBalance;
       const balanceAfter = balanceBefore - amountToTransfer;
 
-      // update reserved balance
       await manager.update(Freelancer, freelancer.id, {
         reservedBalance: balanceAfter,
         nextPayoutDate:
           balanceAfter > 0
-            ? this.calculateNextPayoutDate(freelancer.payoutSchedule)
-            : null, // no more money, clear the date
+            ? calculateNextPayoutDate(freelancer.payoutSchedule)
+            : null,
       });
 
-      // create payout record
       await manager.save(Payout, {
         freelancer: { id: freelancer.id },
         amount: amountToTransfer,
@@ -175,7 +172,6 @@ export class ScheduledPayoutProcessor extends WorkerHost {
         processedAt: new Date(),
       });
 
-      // create transaction ledger entry
       await manager.save(Transaction, {
         freelancer: { id: freelancer.id },
         type: TransactionType.SCHEDULED_PAYOUT,
@@ -202,21 +198,5 @@ export class ScheduledPayoutProcessor extends WorkerHost {
       //              ₦X has been sent to your Nomba account."
       // if full: "Your scheduled payout of ₦X has been sent to your Nomba account."
     });
-  }
-
-  private calculateNextPayoutDate(schedule: PayoutSchedule): Date {
-    const now = new Date();
-    switch (schedule) {
-      case PayoutSchedule.WEEKLY:
-        now.setDate(now.getDate() + 7);
-        break;
-      case PayoutSchedule.BIWEEKLY:
-        now.setDate(now.getDate() + 14);
-        break;
-      case PayoutSchedule.MONTHLY:
-        now.setMonth(now.getMonth() + 1);
-        break;
-    }
-    return now;
   }
 }

@@ -1,4 +1,3 @@
-// contract.entity.ts
 import { Transaction } from 'src/modules/transaction/entities/transaction.entity';
 import { Client } from 'src/modules/users/entities/client.entity';
 import { Freelancer } from 'src/modules/users/entities/freelancer.entity';
@@ -13,9 +12,11 @@ import {
 } from 'typeorm';
 
 export enum ContractStatus {
-  PENDING_PAYMENT = 'pending_payment',
+  OPEN = 'open',
   ACTIVE = 'active',
   COMPLETED = 'completed',
+  PAYMENT_PENDING = 'payment_pending',
+  PAID = 'paid',
 }
 
 @Entity()
@@ -35,12 +36,14 @@ export class Contract {
   @Column({
     type: 'enum',
     enum: ContractStatus,
-    default: ContractStatus.PENDING_PAYMENT,
+    default: ContractStatus.OPEN,
   })
   status: ContractStatus;
 
-  @Column({ nullable: true, unique: true })
-  nombaCheckoutRef: string;
+  // @Column({ nullable: true, unique: true })
+  // nombaCheckoutRef: string;
+  @Column({ nullable: true })
+  checkoutUrl: string;
 
   @Column({ nullable: true })
   paidAt: Date;
@@ -54,8 +57,14 @@ export class Contract {
   @ManyToOne(() => Client, (client) => client.contracts)
   client: Client;
 
+  @Column({ nullable: true })
+  clientId: string;
+
   @ManyToOne(() => Freelancer, (freelancer) => freelancer.contracts)
   freelancer: Freelancer;
+
+  @Column({ nullable: true })
+  freelancerId: string;
 
   @OneToMany(() => Transaction, (transaction) => transaction.contract)
   transactions: Transaction[];
