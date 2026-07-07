@@ -157,6 +157,7 @@ export class ContractsService {
         order: {
           orderReference: contract.id,
           amount: amountInNaira,
+          accountId: this.subAccountId,
           currency: 'NGN',
           customerEmail: contract.client.user.email,
           callbackUrl: `${this.APP_URL}/contracts/${contract.id}/payment-callback`,
