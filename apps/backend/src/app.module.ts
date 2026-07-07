@@ -1,15 +1,18 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { databaseConfig } from './config/database';
-import { ContractsModule } from './contracts/contracts.module';
-import { TransactionModule } from './transaction/transaction.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
+import { TransactionModule } from './modules/transaction/transaction.module';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { bullmqConfig } from './config/bullmq';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -18,10 +21,12 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
       isGlobal: true,
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
+    BullModule.forRootAsync(bullmqConfig),
     UsersModule,
     AuthModule,
     ContractsModule,
     TransactionModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [
